@@ -1,0 +1,26 @@
+# Ignore o diretório __pycache__
+__pycache__/
+
+# Ignore os arquivos .pyc
+*.pyc
+
+# Ignore arquivos de cache do VSCode (caso esteja usando)
+.vscode/
+
+# Ignore arquivos de cache do PyCharm (caso esteja usando)
+.idea/
+
+# Ignore ambiente virtual (caso esteja usando)
+venv/
+
+pyvenv.cfg
+
+.logs.log
+
+.chave.key
+
+.status_encrypted.txt
+
+contratos_reincidentes.txt
+
+Relatório_2024-11-04_2024-12-03.txt
