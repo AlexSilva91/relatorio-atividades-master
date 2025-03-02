@@ -1,20 +1,18 @@
 import pandas as pd
-import os
 from datetime import datetime
 from collections import Counter, OrderedDict
 from auxiliar_por_atividade import get_resultado_formatado
 import logging
+from utils.log import get_log_file_path
 
-# Criação de um logger centralizado
-logger = logging.getLogger(__name__)
+log_file = get_log_file_path()
 
-# Configuração do logging para salvar em arquivo e exibir no console
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.DEBUG,
     handlers=[
-        logging.FileHandler(".logs.log"),  # Salva logs em 'api_logs.log'
-        logging.StreamHandler()  # Exibe logs no console também
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
     ]
 )
 
@@ -49,8 +47,8 @@ def extrair_colunas_interesse(df):
     """
     logging.info("Extraindo colunas de interesse (Técnico, Atividade, Data)")
     atividade = df.iloc[:, 8]
-    data = pd.to_datetime(df.iloc[:, 14], errors='coerce').dt.date
-    tecnico = df.iloc[:, 15]
+    data = pd.to_datetime(df.iloc[:, 15], errors='coerce').dt.date
+    tecnico = df.iloc[:, 16]
     return tecnico, atividade, data
 
 def criar_lista_tuplas(tecnico, atividade, data):
@@ -177,12 +175,18 @@ def salvar_em_txt(tecnicos_atividades, data_inicial, data_final, resultado_forma
         arquivo_saida.write("-------------------------------------------------\n")
         arquivo_saida.write("-----> Relatório de Atividades por Técnico <-----\n")
         arquivo_saida.write("-------------------------------------------------\n")
-        for tecnico, atividades in tecnicos_atividades.items():
+        
+        # Ordena os técnicos em ordem alfabética
+        for tecnico in sorted(tecnicos_atividades.keys()):
+            atividades = tecnicos_atividades[tecnico]
             arquivo_saida.write(f"\n********************************\nTécnico: {tecnico}\n********************************\n")
             total_atividades_tecnico = sum(atividades.values())
             total_geral += total_atividades_tecnico
             arquivo_saida.write(f"\n++++++++++++++++++++++++\nTotal de atividades: {total_atividades_tecnico}\n++++++++++++++++++++++++\n")
-            for atividade, contagem in atividades.items():
+            
+            # Ordena as atividades em ordem alfabética
+            for atividade in sorted(atividades.keys()):
+                contagem = atividades[atividade]
                 arquivo_saida.write(f"- Atividade: {atividade} = {contagem}\n")
             arquivo_saida.write("\n")
 

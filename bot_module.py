@@ -4,11 +4,29 @@ import os
 import time
 from cryptography.fernet import Fernet
 import threading
+from utils.log import get_log_file_path
 
 # Configuração
 BOT_TOKEN = "8141218115:AAETEpDWeVn3sQ0UgWtPuWUw7BeWMFIAXiM"
 CHAT_ID_AUTORIZADO = "-1002447284945"
-STATUS_FILE = ".status_encrypted.txt"  # Arquivo criptografado para armazenar o status
+
+# Função para criar e retornar o caminho do diretório oculto
+def obter_diretorio_oculto():
+    """Cria e retorna o caminho do diretório oculto."""
+    if os.name == "nt":  # Windows
+        diretorio = os.path.join(os.getenv("APPDATA"), ".bot_oculto")
+    else:  # Linux/macOS
+        diretorio = os.path.expanduser("~/.bot_oculto")
+    
+    if not os.path.exists(diretorio):
+        os.makedirs(diretorio)
+    
+    return diretorio
+
+# Caminhos para os arquivos ocultos
+DIRETORIO_OCULTO = obter_diretorio_oculto()
+STATUS_FILE = os.path.join(DIRETORIO_OCULTO, "status_encrypted.txt")
+CHAVE_FILE = os.path.join(DIRETORIO_OCULTO, "chave.key")
 
 # Gerar uma chave para criptografia (apenas uma vez)
 def gerar_chave():
@@ -16,12 +34,12 @@ def gerar_chave():
 
 # Função para carregar ou gerar a chave
 def carregar_chave():
-    if os.path.exists(".chave.key"):
-        with open(".chave.key", "rb") as chave_file:
+    if os.path.exists(CHAVE_FILE):
+        with open(CHAVE_FILE, "rb") as chave_file:
             return chave_file.read()
     else:
         chave = gerar_chave()
-        with open(".chave.key", "wb") as chave_file:
+        with open(CHAVE_FILE, "wb") as chave_file:
             chave_file.write(chave)
         return chave
 
@@ -29,16 +47,14 @@ def carregar_chave():
 chave = carregar_chave()
 fernet = Fernet(chave)
 
-# Criação de um logger centralizado
-logger = logging.getLogger(__name__)
+log_file = get_log_file_path()
 
-# Configuração do logging para salvar em arquivo e exibir no console
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=logging.DEBUG,
     handlers=[
-        logging.FileHandler(".logs.log"),  # Salva logs em 'api_logs.txt'
-        logging.StreamHandler()  # Exibe logs no console também
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
     ]
 )
 
@@ -54,7 +70,7 @@ def carregar_status():
             status = fernet.decrypt(encrypted_status).decode()
             if status in ["bloqueado", "desbloqueado"]:
                 return status
-    return "bloqueado"  # Retorna 'bloqueado' caso não haja arquivo ou o conteúdo seja inválido
+    return "bloqueado"  # Retorna 'bloqueado' caso não haja astatusrquivo ou o conteúdo seja inválido
 
 # Variável global para armazenar o status
 status = carregar_status()  # Carrega o status ao iniciar
@@ -80,14 +96,14 @@ def atualizar_status(message):
         if "bloquear" in message.text.lower():
             status = "bloqueado"
             salvar_status()  # Salva o novo status criptografado
-            logger.info(f"Status alterado para: {status}")
+            logging.info(f"Status alterado para: {status}")
         elif "desbloquear" in message.text.lower():
             status = "desbloqueado"
             salvar_status()  # Salva o novo status criptografado
-            logger.info(f"Status alterado para: {status}")
+            logging.info(f"Status alterado para: {status}")
         return status
     else:
-        logger.warning(f"Usuário não autorizado tentou enviar mensagem: {message.chat.id}")
+        logging.warning(f"Usuário não autorizado tentou enviar mensagem: {message.chat.id}")
         return status  # Retorna o status atual se o usuário não for autorizado
 
 # Função para responder ao comando /start
@@ -98,7 +114,7 @@ def send_welcome(message):
         mostrar_status_atual(message)  # Exibe o status atual quando o bot é iniciado
     else:
         bot.reply_to(message, "Acesso negado. Você não está autorizado a usar este bot.")
-        logger.warning(f"Usuário não autorizado tentou acessar: {message.chat.id}")
+        logging.warning(f"Usuário não autorizado tentou acessar: {message.chat.id}")
 
 # Função para mostrar o status atual
 def mostrar_status_atual(message):
@@ -115,10 +131,10 @@ def handle_message(message):
             status = "desbloqueado"
             salvar_status()  # Salva o novo status criptografado
             bot.reply_to(message, "Sistema desbloqueado com sucesso!")
-            logger.info("Sistema desbloqueado pelo usuário.")
+            logging.info("Sistema desbloqueado pelo usuário.")
         else:
             bot.reply_to(message, "O sistema está bloqueado. Operações não permitidas até ser desbloqueado.")
-            logger.info("Tentativa de operação enquanto o sistema está bloqueado.")
+            logging.info("Tentativa de operação enquanto o sistema está bloqueado.")
     else:  # Sistema desbloqueado, permite qualquer operação
         status = atualizar_status(message)
         bot.reply_to(message, f"O status foi alterado para: {status.capitalize()}.")
@@ -132,15 +148,15 @@ def atualizar_periodicamente():
     while True:
         # Loga o status inicial apenas uma vez
         if not logou_inicial:
-            logger.info(f"Status inicial: {status.capitalize()}")
+            logging.info(f"Status inicial: {status.capitalize()}")
             ultimo_status_logado = status
             logou_inicial = True
         else:
             # Sempre registra que o sistema está funcionando
-            logger.info("O bot está ativo e aguardando comandos.")
+            logging.info("O bot está ativo e aguardando comandos.")
 
         if status != ultimo_status_logado:
-            logger.info(f"Status atualizado: {status.capitalize()}")
+            logging.info(f"Status atualizado: {status.capitalize()}")
             ultimo_status_logado = status
 
         time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
@@ -148,15 +164,21 @@ def atualizar_periodicamente():
 # Função para garantir que as threads estão sendo executadas corretamente
 def start_bot():
     try:
-        logger.info("Bot iniciado, aguardando comandos...")
+        logging.info("Bot iniciado, aguardando comandos...")
         bot.polling()
     except Exception as e:
-        logger.error(f"Erro ao iniciar o bot: {e}")
+        logging.error(f"Erro ao iniciar o bot: {e}")
+
+# Função para parar o bot
+def parar_bot():
+    logging.info("Bot interrompido.")
+    bot.stop_polling()
+
 
 def start():
     """Função para rodar o bot e o status periodicamente ao mesmo tempo"""
     if __name__ == "__main__":
-        logger.info("Iniciando o bot e as threads...")
+        logging.info("Iniciando o bot e as threads...")
 
         # Criando threads para executar as funções simultaneamente
         thread_bot = threading.Thread(target=start_bot)
@@ -168,27 +190,15 @@ def start():
         thread_status.start()
 
         try:
-            # Adicionar importação do main dentro da função start para evitar o ciclo de importação
-            from app import main
-            main()
-
             # Manter o programa ativo
             while True:
                 time.sleep(1)  # Aguarda para manter o programa ativo
         except KeyboardInterrupt:
-            logger.info("Interrupção recebida. Finalizando o bot...")
+            logging.info("Interrupção recebida. Finalizando o bot...")
             # Feche qualquer recurso ou finalização necessária
             bot.stop_polling()
-            logger.info("Bot finalizado.")
-
-def started():
-    start()
-
-# Função para parar o bot
-def parar_bot():
-    logger.info("Bot interrompido.")
-    bot.stop_polling()
+            logging.info("Bot finalizado.")
 
 # Adição de verificação de execução principal
 if __name__ == "__main__":
-    started()
+    start()

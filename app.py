@@ -8,17 +8,16 @@ from acessar_planilha import processar_dados_planilha
 from buscar_reincidencia import buscar_reinicidencia
 from bot_module import get_status, start_bot, parar_bot
 from utils.validation import validation_legth_sheet
+from utils.log import get_log_file_path
 
-# Criação de um logger centralizado
-logger = logging.getLogger(__name__)
+log_file = get_log_file_path()
 
-# Configuração do logging para salvar em arquivo e exibir no console
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.DEBUG,
     handlers=[
-        logging.FileHandler(".logs.log"),  # Salva logs em 'api_logs.log'
-        logging.StreamHandler()  # Exibe logs no console também
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
     ]
 )
 
@@ -230,7 +229,8 @@ class MainWindow(QMainWindow):
         if filename:
             if filename.endswith('.xlsx') and validation_legth_sheet(filename):
                 self.caminho_arquivo = filename
-                file_name = os.path.basename(filename)
+                file_name = os.path.basename(filename) 
+                self.label_file.setStyleSheet("color: green;")
                 self.label_file.setText(f"{file_name}")
                 self.label_file.setAlignment(Qt.AlignCenter)
                 logging.info(f"Arquivo selecionado: {file_name}")

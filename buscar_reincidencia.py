@@ -34,8 +34,8 @@ def extrair_colunas_interesse(df):
         logging.info("Iniciando extração das colunas de interesse.")
         contrato = df.iloc[:, 2]
         atividade = df.iloc[:, 8].str.lower()
-        data = pd.to_datetime(df.iloc[:, 14], errors='coerce')
-        tecnico = df.iloc[:, 15]
+        data = pd.to_datetime(df.iloc[:, 15], errors='coerce')
+        tecnico = df.iloc[:, 16]
         logging.info("Colunas extraídas com sucesso.")
         return tecnico, contrato, atividade, data
     except Exception as e:
